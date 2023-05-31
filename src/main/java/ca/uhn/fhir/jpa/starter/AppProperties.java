@@ -20,7 +20,6 @@ import java.util.Objects;
 @Configuration
 @EnableConfigurationProperties
 public class AppProperties {
-
   private Boolean cr_enabled = false;
   private Boolean ips_enabled = false;
   private Boolean openapi_enabled = false;
@@ -57,6 +56,7 @@ public class AppProperties {
   private Long retain_cached_searches_mins = 60L;
   private Long reuse_cached_search_results_millis = 60000L;
   private String server_address = null;
+  private String remote_terminology = null;
   private EncodingEnum default_encoding = EncodingEnum.JSON;
   private FhirVersionEnum fhir_version = FhirVersionEnum.R4;
   private ClientIdStrategyEnum client_id_strategy = ClientIdStrategyEnum.ALPHANUMERIC;
@@ -573,6 +573,14 @@ public class AppProperties {
 
 	public List<String> getLocal_base_urls() {
 		return local_base_urls;
+	}
+
+	public String getRemote_terminology() {
+		return remote_terminology;
+	}
+
+	public void setRemote_terminology(String remote_terminology) {
+		this.remote_terminology = remote_terminology;
 	}
 
 	public static class Cors {

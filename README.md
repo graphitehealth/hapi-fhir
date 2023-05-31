@@ -6,6 +6,15 @@ Note that this project is specifically intended for end users of the HAPI FHIR J
 
 Need Help? Please see: https://github.com/hapifhir/hapi-fhir/wiki/Getting-Help
 
+## Graphite Specific
+To enable the app to run inside IntellijIdea, open the Maven Tool Window, expand the Profiles folder, and check the `boot` item. Click the "Reload All Maven Projects button". 
+
+### Changes specific to the project
+
+* application.yaml
+* AppProperties (added `remote_terminology`)
+* StarterJpaConfig (uses `remote_terminoloy` setting to enable Symedical as a remote server)
+
 ## Prerequisites
 
 In order to use this sample, you should have:

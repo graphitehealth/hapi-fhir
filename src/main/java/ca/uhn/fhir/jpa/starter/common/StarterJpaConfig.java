@@ -66,6 +66,7 @@ import ca.uhn.fhir.validation.ResultSeverityEnum;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import org.hl7.fhir.common.hapi.validation.support.CachingValidationSupport;
+import org.hl7.fhir.common.hapi.validation.support.RemoteTerminologyServiceValidationSupport;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -107,7 +108,17 @@ public class StarterJpaConfig {
 
 	@Primary
 	@Bean
-	public CachingValidationSupport validationSupportChain(JpaValidationSupportChain theJpaValidationSupportChain) {
+	public CachingValidationSupport validationSupportChain(JpaValidationSupportChain theJpaValidationSupportChain, AppProperties appProperties) {
+
+		if(appProperties.getRemote_terminology() != null) {
+			// Add remote terminology server
+			RemoteTerminologyServiceValidationSupport remoteTermSvc = new RemoteTerminologyServiceValidationSupport(theJpaValidationSupportChain.getFhirContext());
+			remoteTermSvc.setBaseUrl(appProperties.getRemote_terminology());
+
+			//It must be first/early in the chain
+			theJpaValidationSupportChain.addValidationSupport(0, remoteTermSvc);
+			ourLog.info("Using remote terminology services");
+		}
 		return ValidationSupportConfigUtil.newCachingValidationSupport(theJpaValidationSupportChain);
 	}
 
