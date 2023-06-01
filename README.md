@@ -8,7 +8,7 @@ Need Help? Please see: https://github.com/hapifhir/hapi-fhir/wiki/Getting-Help
 
 ## Graphite Specific
 
-## Run locally in IntelliJIdea with Local Postgres DB
+### Run Locally in IntelliJIdea with Local Postgres DB
 * Open the Maven Tool Window, expand the Profiles folder, and check the `boot` item. 
 * Click the "Reload All Maven Projects button". 
 * In your run configuration, set the following environment variables:
@@ -17,7 +17,7 @@ Need Help? Please see: https://github.com/hapifhir/hapi-fhir/wiki/Getting-Help
   * DB_PASS = admin
   * TERMINOLOGY_URL = https://dev-pivot-app.infra.graphitehealth.io/SymedicaldevpivotFHIRServices/r4/
 
-## Run Locally with Docker Compose
+### Run Locally with Docker Compose
 
 The first run is very slow.
 
