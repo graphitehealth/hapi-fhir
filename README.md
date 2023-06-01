@@ -9,6 +9,7 @@ Need Help? Please see: https://github.com/hapifhir/hapi-fhir/wiki/Getting-Help
 ## Graphite Specific
 
 ### Run Locally in IntelliJIdea with Local Postgres DB
+* There is a Postgres DB running on port 5432
 * Open the Maven Tool Window, expand the Profiles folder, and check the `boot` item. 
 * Click the "Reload All Maven Projects button". 
 * In your run configuration, set the following environment variables:
