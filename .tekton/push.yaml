@@ -162,6 +162,7 @@ spec:
     workspaces:
       - name: build
       - name: basic-auth
+      - name: maven-settings
   workspaces:
     - name: basic-auth
       secret:
@@ -174,3 +175,12 @@ spec:
           resources:
             requests:
               storage: 1Gi
+    - name: maven-settings
+      volumeClaimTemplate:
+        metadata:
+          name: hapi-graphitehealth-maven-settings-pvc
+        spec:
+          accessModes: [ "ReadWriteOnce" ]
+          resources:
+            requests:
+              storage: 50Mi
