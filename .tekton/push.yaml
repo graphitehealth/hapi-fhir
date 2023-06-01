@@ -5,7 +5,7 @@ metadata:
   name: hapi-fhir-build-publish-image
   annotations:
     pipelinesascode.tekton.dev/on-event: "[push, pull_request_merged]"
-    pipelinesascode.tekton.dev/on-target-branch: "[ENG-26]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/task-1: "[https://github.com/graphitehealth/main-deploy/blob/main/tekton/tasks/custom-generate-build-id.yaml]"
     pipelinesascode.tekton.dev/task-2: "[https://github.com/graphitehealth/main-deploy/blob/main/tekton/tasks/maven-custom.yaml]"
@@ -119,46 +119,46 @@ spec:
         workspaces:
           - name: source
             workspace: build
-#      - name: gitops-clone
-#        params:
-#          - name: url
-#            value: git@github.com:graphitehealth/gitops.git
-#          - name: revision
-#            value: 'refs/heads/main:refs/remotes/origin/main'
-#        workspaces:
-#          - name: output
-#            workspace: build
-#        taskRef:
-#          kind: ClusterTask
-#          name: git-clone
-#        runAfter:
-#          - build-image
-#      - name: gitops-update
-#        params:
-#          - name: GIT_SCRIPT
-#            value: |
-#              git checkout -b main
-#              for i in $(tasks.get-deployments.results.deployment-names); do
-#                sed -i "/image:/{ /$(params.git-repo-name)/s/@sha256:.*/@$(tasks.build-image.results.IMAGE_DIGEST)/"} base/${i}/${i}-deploy.yaml
-#                git add base/${i}/${i}-deploy.yaml
-#                dos2unix base/${i}/${i}-deploy.yaml
-#              done
-#              msg="TektonBot Update Image Tag : $(tasks.get-deployments.results.deployment-names) ($(tasks.build-image.results.IMAGE_DIGEST))"
-#              git commit -m "${msg}"
-#              git push -u origin main
-#              echo $msg
-#          - name: GIT_USER_NAME
-#            value: "Tekton Bot"
-#          - name: GIT_USER_EMAIL
-#            value: tekton@local
-#        workspaces:
-#          - name: source
-#            workspace: build
-#        taskRef:
-#          kind: ClusterTask
-#          name: git-cli
-#        runAfter:
-#          - gitops-clone
+      - name: gitops-clone
+        params:
+          - name: url
+            value: git@github.com:graphitehealth/gitops.git
+          - name: revision
+            value: 'refs/heads/main:refs/remotes/origin/main'
+        workspaces:
+          - name: output
+            workspace: build
+        taskRef:
+          kind: ClusterTask
+          name: git-clone
+        runAfter:
+          - build-image
+      - name: gitops-update
+        params:
+          - name: GIT_SCRIPT
+            value: |
+              git checkout -b main
+              for i in $(tasks.get-deployments.results.deployment-names); do
+                sed -i "/image:/{ /$(params.git-repo-name)/s/@sha256:.*/@$(tasks.build-image.results.IMAGE_DIGEST)/"} base/${i}/${i}-deploy.yaml
+                git add base/${i}/${i}-deploy.yaml
+                dos2unix base/${i}/${i}-deploy.yaml
+              done
+              msg="TektonBot Update Image Tag : $(tasks.get-deployments.results.deployment-names) ($(tasks.build-image.results.IMAGE_DIGEST))"
+              git commit -m "${msg}"
+              git push -u origin main
+              echo $msg
+          - name: GIT_USER_NAME
+            value: "Tekton Bot"
+          - name: GIT_USER_EMAIL
+            value: tekton@local
+        workspaces:
+          - name: source
+            workspace: build
+        taskRef:
+          kind: ClusterTask
+          name: git-cli
+        runAfter:
+          - gitops-clone
     workspaces:
       - name: build
       - name: basic-auth
