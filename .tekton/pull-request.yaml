@@ -100,7 +100,7 @@ spec:
             value: >-
               $(params.container-repo)/$(params.git-repo-name):$(tasks.set-build-id.results.build-id)
         runAfter:
-          - gradle-build
+          - maven-build
         taskRef:
           name: buildah-custom
         workspaces:
