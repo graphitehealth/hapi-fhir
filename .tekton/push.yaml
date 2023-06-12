@@ -1,0 +1,186 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: hapi-fhir-build-publish-image
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "[push, pull_request_merged]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/task-1: "[https://github.com/graphitehealth/main-deploy/blob/main/tekton/tasks/custom-generate-build-id.yaml]"
+    pipelinesascode.tekton.dev/task-2: "[https://github.com/graphitehealth/main-deploy/blob/main/tekton/tasks/maven-custom.yaml]"
+    pipelinesascode.tekton.dev/task-3: "[https://github.com/graphitehealth/main-deploy/blob/main/tekton/tasks/get-deployment-names.yaml]"
+    pipelinesascode.tekton.dev/task-4: "[https://github.com/graphitehealth/main-deploy/blob/main/tekton/tasks/buildah-custom.yaml]"
+spec:
+  params:
+    - name: git-repo-name
+      value: "{{repo_name}}"
+    - name: git-repo-url
+      value: "{{repo_url}}"
+    - name: git-revision
+      value: "{{revision}}"
+    - name: git-branch
+      value: "{{source_branch}}"
+    - name: base-version
+      value: "1.0.0"
+    - name: dockerfile
+      value: 'Dockerfile'
+    - name: container-repo
+      value: "repo-harbor.apps.dev.infra.graphitehealth.io/gh"
+    - name: maven-goals
+      type: array
+      value:
+        - "compile"
+        - "package"
+    - name: maven-image
+      value: 'repo-harbor.apps.dev.infra.graphitehealth.io/gh/java-build:latest'
+  pipelineSpec:
+    params:
+      - name: git-repo-name
+      - name: git-repo-url
+      - name: git-revision
+      - name: git-branch
+      - name: base-version
+      - name: dockerfile
+      - name: container-repo
+      - name: maven-goals
+        type: array
+      - name: maven-image
+    tasks:
+      - name: fetch-repository
+        params:
+          - name: url
+            value: $(params.git-repo-url)
+          - name: refspec
+            value: $(params.git-branch)
+          - name: revision
+            value: $(params.git-revision)
+        taskRef:
+          kind: ClusterTask
+          name: git-clone
+        workspaces:
+          - name: output
+            workspace: build
+          - name: basic-auth
+            workspace: basic-auth
+      - name: get-deployments
+        params:
+          - name: git-repo-name
+            value: $(params.git-repo-name)
+        workspaces:
+          - name: source
+            workspace: build
+        taskRef:
+          name: get-deployment-names
+        runAfter:
+          - fetch-repository
+      - name: set-build-id
+        params:
+          - name: base-version
+            value: $(params.base-version)
+          - name: commit-sha
+            value: $(tasks.fetch-repository.results.commit)
+        runAfter:
+          - fetch-repository
+        taskRef:
+          name: custom-generate-build-id
+      - name: maven-build
+        params:
+          - name: GOALS
+            value:
+              - $(params.maven-goals)
+              #- dependencyCheckAnalyze
+          - name: MAVEN_IMAGE
+            value: $(params.maven-image)
+          - name: jar-version
+            value: $(tasks.set-build-id.results.build-id)
+        runAfter:
+          - set-build-id
+        taskRef:
+          name: maven-custom
+        workspaces:
+          - name: output
+            workspace: build
+          - name: maven-settings
+            workspace: maven-settings
+      - name: build-image
+        params:
+          - name: DOCKERFILE
+            value: $(params.dockerfile)
+          - name: TLSVERIFY
+            value: 'false'
+          - name: IMAGE
+            value: >-
+              $(params.container-repo)/$(params.git-repo-name):$(tasks.set-build-id.results.build-id)
+        runAfter:
+          - maven-build
+        taskRef:
+          name: buildah-custom
+        workspaces:
+          - name: source
+            workspace: build
+      - name: gitops-clone
+        params:
+          - name: url
+            value: git@github.com:graphitehealth/gitops.git
+          - name: revision
+            value: 'refs/heads/main:refs/remotes/origin/main'
+        workspaces:
+          - name: output
+            workspace: build
+        taskRef:
+          kind: ClusterTask
+          name: git-clone
+        runAfter:
+          - build-image
+      - name: gitops-update
+        params:
+          - name: GIT_SCRIPT
+            value: |
+              git checkout -b main
+              for i in $(tasks.get-deployments.results.deployment-names); do
+                sed -i "/image:/{ /$(params.git-repo-name)/s/@sha256:.*/@$(tasks.build-image.results.IMAGE_DIGEST)/"} base/${i}/${i}-deploy.yaml
+                git add base/${i}/${i}-deploy.yaml
+                dos2unix base/${i}/${i}-deploy.yaml
+              done
+              msg="TektonBot Update Image Tag : $(tasks.get-deployments.results.deployment-names) ($(tasks.build-image.results.IMAGE_DIGEST))"
+              git commit -m "${msg}"
+              git push -u origin main
+              echo $msg
+          - name: GIT_USER_NAME
+            value: "Tekton Bot"
+          - name: GIT_USER_EMAIL
+            value: tekton@local
+        workspaces:
+          - name: source
+            workspace: build
+        taskRef:
+          kind: ClusterTask
+          name: git-cli
+        runAfter:
+          - gitops-clone
+    workspaces:
+      - name: build
+      - name: basic-auth
+      - name: maven-settings
+  workspaces:
+    - name: basic-auth
+      secret:
+        secretName: "{{ git_auth_secret }}"
+    - name: build
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+    - name: maven-settings
+      volumeClaimTemplate:
+        metadata:
+          name: hapi-graphitehealth-maven-settings-pvc
+        spec:
+          accessModes: [ "ReadWriteOnce" ]
+          resources:
+            requests:
+              storage: 50Mi

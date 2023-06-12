@@ -6,6 +6,32 @@ Note that this project is specifically intended for end users of the HAPI FHIR J
 
 Need Help? Please see: https://github.com/hapifhir/hapi-fhir/wiki/Getting-Help
 
+## Graphite Specific
+
+### Run Locally in IntelliJIdea with Local Postgres DB
+* There is a Postgres DB running on port 5432
+* Open the Maven Tool Window, expand the Profiles folder, and check the `boot` item. 
+* Click the "Reload All Maven Projects button". 
+* In your run configuration, set the following environment variables:
+  * DB_URL = jdbc:postgresql://localhost:5432/hapi
+  * DB_USER = admin
+  * DB_PASS = admin
+  * TERMINOLOGY_URL = https://dev-pivot-app.infra.graphitehealth.io/SymedicaldevpivotFHIRServices/r4/
+
+### Run Locally with Docker Compose
+
+The first run is very slow.
+
+```
+docker compose up -d
+```
+
+### Changes specific to the project
+
+* application.yaml
+* AppProperties (added `remote_terminology`)
+* StarterJpaConfig (uses `remote_terminoloy` setting to enable Symedical as a remote server)
+
 ## Prerequisites
 
 In order to use this sample, you should have:

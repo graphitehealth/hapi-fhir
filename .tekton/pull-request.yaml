@@ -1,0 +1,117 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: hapi-fhir-pull-request-build
+  annotations:
+    pipelinesascode.tekton.dev/on-event: "[pull_request]"
+    pipelinesascode.tekton.dev/on-target-branch: "[main]"
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/task-1: "[https://github.com/graphitehealth/main-deploy/blob/main/tekton/tasks/custom-generate-build-id.yaml]"
+    pipelinesascode.tekton.dev/task-2: "[https://github.com/graphitehealth/main-deploy/blob/main/tekton/tasks/maven-custom.yaml]"
+spec:
+  params:
+    - name: git-repo-name
+      value: "{{repo_name}}"
+    - name: git-repo-url
+      value: "{{repo_url}}"
+    - name: git-revision
+      value: "{{revision}}"
+    - name: git-branch
+      value: "{{source_branch}}"
+    - name: base-version
+      value: "1.0.0"
+    - name: dockerfile
+      value: 'Dockerfile'
+    - name: container-repo
+      value: "repo-harbor.apps.dev.infra.graphitehealth.io/gh"
+    - name: maven-goals
+      type: array
+      value:
+        - "compile"
+        - "package"
+    - name: maven-image
+      value: 'repo-harbor.apps.dev.infra.graphitehealth.io/gh/java-build:latest'
+  pipelineSpec:
+    params:
+      - name: git-repo-name
+      - name: git-repo-url
+      - name: git-revision
+      - name: git-branch
+      - name: base-version
+      - name: dockerfile
+      - name: container-repo
+      - name: maven-goals
+        type: array
+      - name: maven-image
+    tasks:
+      - name: fetch-repository
+        params:
+          - name: url
+            value: $(params.git-repo-url)
+          - name: refspec
+            value: $(params.git-branch)
+          - name: revision
+            value: $(params.git-revision)
+        taskRef:
+          kind: ClusterTask
+          name: git-clone
+        workspaces:
+          - name: output
+            workspace: build
+          - name: basic-auth
+            workspace: basic-auth
+      - name: set-build-id
+        params:
+          - name: base-version
+            value: $(params.base-version)
+          - name: commit-sha
+            value: $(tasks.fetch-repository.results.commit)
+        runAfter:
+          - fetch-repository
+        taskRef:
+          name: custom-generate-build-id
+      - name: maven-build
+        params:
+          - name: GOALS
+            value:
+              - $(params.maven-goals)
+              #- dependencyCheckAnalyze
+          - name: MAVEN_IMAGE
+            value: $(params.maven-image)
+          - name: jar-version
+            value: $(tasks.set-build-id.results.build-id)
+        runAfter:
+          - set-build-id
+        taskRef:
+          name: maven-custom
+        workspaces:
+          - name: output
+            workspace: build
+          - name: maven-settings
+            workspace: maven-settings
+    workspaces:
+      - name: build
+      - name: basic-auth
+      - name: maven-settings
+  workspaces:
+    - name: basic-auth
+      secret:
+        secretName: "{{ git_auth_secret }}"
+    - name: build
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+    - name: maven-settings
+      volumeClaimTemplate:
+        metadata:
+          name: hapi-graphitehealth-maven-settings-pvc
+        spec:
+          accessModes: [ "ReadWriteOnce" ]
+          resources:
+            requests:
+              storage: 50Mi
